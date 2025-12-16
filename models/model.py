@@ -85,28 +85,6 @@ class ToTal_decoder(nn.Module):
 # 输入尺寸是torch.Size([1, 8, 256, 256])
 # 输出尺寸是torch.Size([1, 32, 128, 128])
 
-class SELF_decoder(nn.Module):
-    def __init__(self,start_channel):
-        super(SELF_decoder,self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=start_channel,out_channels=start_channel//2,kernel_size=(3,3),stride=(1,1),padding=1)
-        self.BN1 = nn.BatchNorm2d(start_channel//2)
-        self.resblock1 = resblock(start_channel // 2 , start_channel // 2)
-        self.conv2 = nn.Conv2d(in_channels=start_channel//2,out_channels=start_channel//4,kernel_size=(3,3),stride=(1,1),padding=1)
-        self.BN2 = nn.BatchNorm2d(start_channel//4)
-        self.resblock2 = resblock(start_channel // 4, start_channel // 4)
-        self.conv3 = nn.Conv2d(in_channels=start_channel//4,out_channels=start_channel//4,kernel_size=(1,1),stride=(1,1))
-        self.ReLU = nn.ReLU()
-    def forward(self,x):
-        x = self.conv1(x)
-        x = self.BN1(x)
-        x = self.ReLU(x)
-        x = self.resblock1(x)
-        x = self.conv2(x)
-        x = self.BN2(x)
-        x = self.ReLU(x)
-        x = self.resblock2(x)
-        x = self.conv3(x)
-        return x
 
 class Rebuilt(nn.Module):
     def __init__(self,channel1,channel2):
@@ -129,47 +107,6 @@ class Rebuilt(nn.Module):
         z = self.resblock2(z)
         z = self.conv2(z)
         return z
-
-class Generator(nn.Module):
-    def __init__(self,x4_channel,x3_channel,x2_channel,x1_channel):
-        super(Generator,self).__init__()
-        self.conv1 = nn.ConvTranspose2d(in_channels=x4_channel,out_channels=x3_channel,kernel_size=(3,3),stride=(2,2),padding=(1,1),output_padding=(1,1))
-        self.BN1 = nn.BatchNorm2d(x3_channel)
-        self.conv2 = nn.ConvTranspose2d(in_channels=x3_channel*2,out_channels=x2_channel,kernel_size=(3,3),stride=(2,2),padding=(1,1),output_padding=(1,1))
-        self.BN2 = nn.BatchNorm2d(x2_channel)
-        self.conv3 = nn.ConvTranspose2d(in_channels=x2_channel*2,out_channels=x1_channel,kernel_size=(3,3),stride=(2,2),padding=(1,1),output_padding=(1,1))
-        self.BN3 = nn.BatchNorm2d(x1_channel)
-        self.conv4 = nn.Conv2d(in_channels=x1_channel*2,out_channels=3,kernel_size=(3,3),stride=(1,1),padding=(1,1))
-        self.BN4 = nn.BatchNorm2d(3)
-        self.conv5 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=(1, 1), stride=(1, 1))
-        self.Tanh = nn.Tanh()
-
-        self.ReLU = nn.ReLU()
-    def forward(self,x1,x2,x3,x4):
-        # x1 是256的 x2 是128的 x3是64de x4是32的
-        x4 = self.conv1(x4)
-        x4 = self.BN1(x4)
-        x4 = self.ReLU(x4)
-
-        x3 = torch.cat((x4,x3),dim=1)
-        x3 = self.conv2(x3)
-        x3 = self.BN2(x3)
-        x3 = self.ReLU(x3)
-
-        x2 = torch.cat((x3,x2),dim=1)
-        x2 = self.conv3(x2)
-        x2 = self.BN3(x2)
-        x2 = self.ReLU(x2)
-
-        x1 = torch.cat((x2,x1),dim=1)
-        x1 = self.conv4(x1)
-        x1 = self.BN4(x1)
-        x1 = self.ReLU(x1)
-
-        x1 = self.conv5(x1)
-        x1 = self.Tanh(x1)
-
-        return x1
 
 class Space_Attention(nn.Module):
     def __init__(self, in_channels, out_channels, reduction=4):
@@ -375,17 +312,3 @@ class Net(nn.Module):
 
         return G1,G2,G3,G4,Map
 
-if __name__ == '__main__':
-    net = Net()
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = net.to(device)
-    batch = 1
-    x = torch.randn(batch, 3, 256, 256)
-    x = x.to(device)
-    y = torch.randn(batch, 3, 256, 256)
-    y = y.to(device)
-    model(x, y)
-    print(1)
-    macs, params = profile(model, inputs=(x, y))
-    print(f"模型FLOPs: {macs/1e9:.2f} GFLOPs")
-    print(f"模型参数量: {params/1e6:.2f} M params")
